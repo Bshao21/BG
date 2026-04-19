@@ -237,6 +237,26 @@
             "api": "./PY/人人影视.py"
         },
         {
+            "key": "py_青禾",
+            "name": "青禾🧧影视",
+            "type": 3,
+            "quickSearch": 1,
+            "searchable": 1,
+            "filterable": 1,
+            "api": "./PY/青禾影视.py",
+            "timeout": 40
+        },
+        {
+            "key": "py_影视大全",
+            "name": "影视🧧大全",
+            "type": 3,
+            "quickSearch": 1,
+            "searchable": 1,
+            "filterable": 1,
+            "api": "./PY/影视大全.py",
+            "timeout": 40
+        },
+        {
             "key": "奇优动漫",
             "name": "优等🧧影视",
             "type": 3,
