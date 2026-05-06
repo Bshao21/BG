@@ -4,7 +4,7 @@
     "sites": [
         {
             "key": "豆瓣",
-            "name": "💥兵哥视界💥4月17日🌺五一临，出游兴🌺祝大家观影愉快",
+            "name": "💥兵哥视界💥5月6日🌺五一临，出游兴🌺祝大家观影愉快",
             "type": 3,
             "api": "csp_Douban",
             "searchable": 0,
@@ -768,6 +768,54 @@
       "ext": ""
     },
     {
+            "key": "三三小说",
+            "name": "三三🧧小说",
+            "type": 3,
+            "api": "csp_ProxySpider",
+            "jar": "./jar/pro.jar",
+            "style": {
+                "type": "rect",
+                "ratio": 1.33
+            },
+            "changeable": 1,
+            "ext": {
+                "class": "SanSanNovel"
+            },
+            "类型": "小说"
+        },
+        {
+            "key": "七小小说",
+            "name": "肥猫🧧小说",
+            "type": 3,
+            "api": "csp_ProxySpider",
+            "jar": "./jar/pro.jar",
+            "style": {
+                "type": "rect",
+                "ratio": 1.33
+            },
+            "changeable": 1,
+            "ext": {
+                "class": "NovelReader"
+            },
+            "类型": "小说"
+        },
+        {
+            "key": "阅读助手",
+            "name": "阅读🧧助手",
+            "type": 3,
+            "api": "csp_ProxySpider",
+            "jar": "./jar/pro.jar",
+            "style": {
+                "type": "rect",
+                "ratio": 1.33
+            },
+            "changeable": 1,
+            "ext": {
+                "class": "ReaderHelper"
+            },
+            "类型": "小说"
+        },
+        {
             "key": "push_agent",
             "name": "手机🧧推送",
             "type": 3,
