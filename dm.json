@@ -1,0 +1,22 @@
+{
+    "spider": "./danmu-spider-native.jar",
+    "lives": [],
+    "sites": [
+        {
+            "key": "弹幕",
+            "name": "弹幕(测试)",
+            "type": 3,
+            "api": "csp_SecureDanmu",
+            "index": 1,
+            "ext": {
+                "apiUrls": [
+                    "http://192.168.7.67:9321/793641910|全冠",
+                    "http://192.168.2.76:9321/793641910|源杰5G",
+                    "http://192.168.2.111:9321/793641910|源杰",
+                    "http://10.12.53.133:9321/793641910|手机"
+                ],
+                "titleMappingsUrl": "https://d.kstore.dev/download/13466/yins.json"
+            }
+        }
+    ]
+}
