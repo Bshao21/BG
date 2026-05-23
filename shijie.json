@@ -1284,6 +1284,15 @@
             "类型": "短剧"
         },
         {
+            "key": "SVIP短剧",
+            "name": "SVIP🧧短剧",
+            "type": 3,
+            "jar": "./jar/XBPQ.jar",
+            "api": "csp_XBPQ",
+            "ext": "./XBPQ/SVIP短剧.json",
+            "类型": "短剧"
+        },
+        {
             "key": "河马短剧",
             "name": "河马🧧短剧",
             "type": 3,
