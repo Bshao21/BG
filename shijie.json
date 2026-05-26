@@ -4,7 +4,7 @@
     "sites": [
         {
             "key": "豆瓣",
-            "name": "💥兵哥视界💥5月26日🌺新增漫画小说🌺祝大家观影愉快🇨🇳",
+            "name": "💥兵哥视界💥5月26日🌺新增漫🧧画，小🧧说🌺祝大家观影愉快🇨🇳",
             "type": 3,
             "api": "csp_Douban",
             "searchable": 0,
@@ -1912,17 +1912,6 @@
             "filterable": 1,
             "api": "./yang/阅读助手.py",
             "类型": "小说",
-            "timeout": 40
-        },
-        {
-            "key": "py_第一版主",
-            "name": "第一🧧版主",
-            "type": 3,
-            "quickSearch": 1,
-            "searchable": 1,
-            "filterable": 1,
-            "api": "./yang/第一版主.py",
-            "类型": "漫画",
             "timeout": 40
         },
         {
