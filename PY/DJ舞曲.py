@@ -31,7 +31,7 @@ class Spider(Spider):
             '外文综合': '27', '韩国风Bounce': '28', '反差/变速': '29',
             '开场音乐': '30', '私房串烧': '35', '私房单曲': '36', '越南风': '34',
         }
-        self.default_pic = 'https://v6.gh-proxy.org/https://raw.githubusercontent.com/Bshao21/BG/refs/heads/main/lib/DJ.png'
+        self.default_pic = 'https://v6.gh-proxy.org/https://raw.githubusercontent.com/Bshao21/BG/refs/heads/main/lib/DJ.jpg'
 
     def getName(self):
         return "精彩DJ"
