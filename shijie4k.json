@@ -507,6 +507,16 @@
             "timeout": 60
         },
         {
+            "key": "谷歌",
+            "name": "谷歌🧧搜索",
+            "type": 3,
+            "api": "csp_GugeSo",
+            "searchable": 1,
+            "quickSearch": 0,
+            "filterable": 0,
+            "timeout": 60
+        },
+        {
             "key": "百酷",
             "name": "百酷🧧搜索",
             "type": 3,
