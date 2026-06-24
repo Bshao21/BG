@@ -1926,6 +1926,28 @@
             "timeout": 40
         },
         {
+            "key": "py_第一版主",
+            "name": "第一版主",
+            "type": 3,
+            "quickSearch": 1,
+            "searchable": 1,
+            "filterable": 1,
+            "api": "./yang/第一版主.py",
+            "类型": "小说",
+            "timeout": 40
+        },
+        {
+            "key": "py_三三言情合",
+            "name": "三三言情",
+            "type": 3,
+            "quickSearch": 1,
+            "searchable": 1,
+            "filterable": 1,
+            "api": "./yang/三三言情.py",
+            "类型": "小说",
+            "timeout": 40
+        },
+        {
             "key": "py_动漫啦",
             "name": "动漫🧧啦",
             "type": 3,
