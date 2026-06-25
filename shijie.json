@@ -1251,6 +1251,18 @@
             "ext": "./js/剧圈圈.js"
         },
         {
+            "key": "红果",
+            "name": "红果🧧短剧",
+            "type": 3,
+            "api": "./PY/红果短剧.py",
+            "searchable": 1,
+            "quickSearch": 1,
+            "changeable": 1,
+            "filterable": 1,
+            "timeout": 40,
+            "类型": "短剧
+        },
+        {
             "key": "三合🧧短剧",
             "name": "三合🧧短剧",
             "type": 3,
