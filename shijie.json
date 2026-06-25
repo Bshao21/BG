@@ -1916,7 +1916,7 @@
         },
         {
             "key": "py_去读书聚合",
-            "name": "去🧧读书",
+            "name": "去吧🧧读书",
             "type": 3,
             "quickSearch": 1,
             "searchable": 1,
@@ -1927,7 +1927,7 @@
         },
         {
             "key": "py_第一版主",
-            "name": "第一版主",
+            "name": "第一🧧版主",
             "type": 3,
             "quickSearch": 1,
             "searchable": 1,
@@ -1938,7 +1938,7 @@
         },
         {
             "key": "py_三三言情合",
-            "name": "三三言情",
+            "name": "三三🧧言情",
             "type": 3,
             "quickSearch": 1,
             "searchable": 1,
@@ -1971,7 +1971,7 @@
         },
         {
       "key": "七猫小说[书]",
-      "name": "七猫小说",
+      "name": "七猫🧧小说",
       "type": 3,
       "api": "./PY/七猫小说[书].py",
       "searchable": 1,
