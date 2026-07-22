@@ -1,0 +1,14 @@
+   {
+     "请求头": "User-Agent$MOBILE_UA",
+     "编码": "UTF-8",
+     "主页url": "https://www.tanshiedu.com/",
+     "分类url": "https://www.tanshiedu.com/qq{cateId}-{catePg}/area/{area}/by/{by}/class/{class}/lang/{lang}/letter/{letter}/year/{year}.html",
+     "分类": "电影$1#剧集$2#综艺$3#动漫$4",
+     "简介": "description\"content=\"&&\"",
+     "数组": "lazyload\"&&</p>",
+     "标题": "title=\"&&\"",
+     "图片": "data-original=\"&&\"",
+     "链接": "href=\"&&\"",
+     "线路数组": "#ewave-playlist&&</li>",
+     "线路标题": "<a*>&&<"
+   }
