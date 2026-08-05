@@ -140,12 +140,10 @@ class Spider(BaseSpider):
     def _build_api_url(self, path, params=None):
         url = self.api_url + path
         if params:
-            query = []
-            for key, value in params.items():
-                if value and value != "" and value is not None:
-                    query.append(key + "=" + str(value))
-            if query:
-                url += "?" + "&".join(query)
+            # 过滤空值并使用 urlencode 正确编码中文参数
+            filtered = {k: str(v) for k, v in params.items() if v and v != "" and v is not None}
+            if filtered:
+                url += "?" + urlencode(filtered)
         return url
 
     def _api_get(self, path, params=None):
@@ -282,40 +280,45 @@ class Spider(BaseSpider):
         key = str(key or "").strip()
         if not key:
             return {"list": [], "page": pg, "pagecount": 0}
-        
+
         try:
-            data = self._api_get("/suggest", {"q": key})
-            
+            # 改用 /browse/catalog 真正的搜索列表接口，支持封面图和真实分页
+            params = {
+                "q": key,
+                "page": str(pg)
+            }
+            data = self._api_get("/browse/catalog", params)
+
             videos = []
-            if data and data.get("suggestions"):
-                for sug in data["suggestions"]:
-                    target = sug.get("target", {})
-                    variant_id = target.get("variant_id")
-                    if not variant_id:
-                        continue
-                    
-                    subtitle = sug.get("subtitle") or ""
-                    year_match = re.search(r"(\d{4})", subtitle)
-                    year = year_match.group(1) if year_match else ""
-                    kind_match = re.search(r"·\s*(电影|剧集|动漫|综艺)", subtitle)
-                    kind = kind_match.group(1) if kind_match else ""
-                    
-                    videos.append({
-                        "vod_id": variant_id,
-                        "vod_name": sug.get("label") or target.get("title") or "",
-                        "vod_pic": "",
-                        "vod_remarks": kind if kind else subtitle,
-                        "vod_year": year
-                    })
-            
+            if data and data.get("cards"):
+                for card in data["cards"]:
+                    item = self._parse_card(card)
+                    if item:
+                        videos.append(item)
+
+            # 解析真实分页信息
+            pagination = data.get("pagination") if data else None
+            has_more = pagination.get("has_more") if pagination else False
+            total = pagination.get("total") if pagination else len(videos)
+            limit = pagination.get("limit") if pagination else 20
+
+            if has_more:
+                pagecount = pagination.get("next_page") or (pg + 1)
+            elif total == 0:
+                pagecount = 0
+            else:
+                pagecount = pg
+
             return {
                 "list": videos,
                 "page": pg,
-                "pagecount": 1 if videos else 0
+                "pagecount": pagecount,
+                "limit": limit,
+                "total": total
             }
         except Exception as e:
             print("搜索失败:", str(e))
-            return {"list": [], "page": pg, "pagecount": 0}
+            return {"list": [], "page": pg, "pagecount": 0, "limit": 20, "total": 0}
 
     def detailContent(self, ids):
         raw_id = ids[0] if isinstance(ids, (list, tuple)) else ids
