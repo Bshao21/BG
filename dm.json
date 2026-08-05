@@ -1,5 +1,5 @@
 {
-    "spider": "./jar/danmu-spider-native.jar;md5;101891204D4071C1510918C8C5C4F1C0",
+    "spider": "./jar/danmu-spider-native.jar;md5;38C9C3FBDEB7B247892353C6C0139735",
     "lives": [],
     "sites": [
         {
@@ -11,9 +11,10 @@
             "ext": {
                 "apiUrls": [
                     "http://192.168.7.67:9321/793641910|全冠",
-                    "https://op.nongmei.site:9443/654321|兵哥公益弹幕",
-                    "http://192.168.2.188:9321/793641910|源杰",
-                    "http://192.168.1.78:9321/793641910|手机"
+                    "https://op.nongmei.site:9443/654321|兵哥弹幕",
+                    "https://danmu.0000996.xyz/87654321|公益源1",
+          "https://dm.longemby.com/longemby|公益源2",
+          "https://uzdm.616222.xyz|uz公益源"
                 ],
                 "titleMappingsUrl": "https://ghfast.top/https://raw.githubusercontent.com/Bshao21/BG/refs/heads/main/yins.json"
             }
