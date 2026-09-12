@@ -1,5 +1,5 @@
 {
-    "spider": "./jar/danmu-spider-native.jar;md5;75173e54b10d99e0b6f8563dfb60d7c6",
+    "spider": "./danmu-spider-native.jar;md5;75173e54b10d99e0b6f8563dfb60d7c6",
     "lives": [],
     "sites": [
         {
@@ -10,13 +10,12 @@
             "index": 1,
             "ext": {
                 "apiUrls": [
-                    "http://192.168.7.67:9321/793641910|全冠",
-                    "https://op.nongmei.site:9443/654321|兵哥弹幕",
-                    "https://danmu.0000996.xyz/87654321|公益源1",
-          "https://dm.longemby.com/longemby|公益源2",
-          "https://logvar.hhht.cc.cd/|公益源"
+                    "http://192.168.7.67:9321/793641910|兵哥自用部署",
+                    "https://dandan.wenjian.de/wenjian|公益弹幕",
+                    "https://dm.longemby.com/longemby|兵哥弹幕",
+                    "https://logvar.hhht.cc.cd/|公益弹幕2"
                 ],
-                "titleMappingsUrl": "https://ghfast.top/https://raw.githubusercontent.com/Bshao21/BG/refs/heads/main/yins.json"
+                "titleMappingsUrl": "https://ghfast.top/https://raw.githubusercontent.com/goodcommunication/mydm/main/yins.json"
             }
         }
     ]
