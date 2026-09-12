@@ -1,5 +1,5 @@
 {
-    "spider": "./danmu-spider-native.jar;md5;75173e54b10d99e0b6f8563dfb60d7c6",
+    "spider": "./jar/danmu-spider-native.jar;md5;75173e54b10d99e0b6f8563dfb60d7c6",
     "lives": [],
     "sites": [
         {
