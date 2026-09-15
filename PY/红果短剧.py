@@ -1710,7 +1710,7 @@ def _spider_detail(mv):
             if len(play_from) == 1 and len(play_url) == 1 and play_url[0]:
                 base_line = play_url[0]
                 labels = ["1080P", "720P", "540P", "480P", "360P"]
-                play_from = [f"红果·{q}" for q in labels]
+                play_from = [f"🧧{q}" for q in labels]
                 play_url = [base_line for _ in labels]
         except Exception:
             pass
