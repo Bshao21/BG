@@ -3863,7 +3863,7 @@ class Spider(Spider):
         vids = s.get("vid_list") or []
         actors = [str(x.get("nickname")) for x in (s.get("celebrities") or []) if isinstance(x, dict) and x.get("nickname")]
         eps = "#".join("第%d集%s%s" % (i + 1, "$", EPISODE_PREFIX + str(v)) for i, v in enumerate(vids))
-        return {"list": [{"vod_id": sid, "vod_name": str(s.get("series_name") or ""), "vod_pic": str(s.get("series_cover") or ""), "vod_year": "", "vod_area": "", "vod_director": "", "vod_actor": ",".join(actors), "vod_content": str(s.get("series_intro") or ""), "vod_remarks": str(s.get("episode_right_text") or ""), "vod_play_from": "红果", "vod_play_url": eps}]}
+        return {"list": [{"vod_id": sid, "vod_name": str(s.get("series_name") or ""), "vod_pic": str(s.get("series_cover") or ""), "vod_year": "", "vod_area": "", "vod_director": "", "vod_actor": ",".join(actors), "vod_content": str(s.get("series_intro") or ""), "vod_remarks": str(s.get("episode_right_text") or ""), "vod_play_from": "兵哥爱短剧", "vod_play_url": eps}]}
 
     def playerContent(self, flag, id, vipFlags=None):
         vid = str(id).replace(EPISODE_PREFIX, "")
