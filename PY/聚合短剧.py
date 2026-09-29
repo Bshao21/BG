@@ -10,6 +10,11 @@ from urllib.parse import urlencode, quote, unquote
 from datetime import datetime
 
 import requests
+try:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+except Exception:
+    pass
 
 try:
     sys.path.append('..')
@@ -150,7 +155,7 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
         # 牛牛初始化
         nnDeviceId = str(uuid.uuid4())
         try:
-            tkhtml = self.req(self.rule['牛牛']['host'] + self.rule['牛牛']['visitor'], headers={'deviceid': nnDeviceId, 'token': '', 'User-Agent': 'okhttp/4.12.0', 'client': 'app', 'devicetype': 'Android'})
+            tkhtml = self.req(self.rule['牛牛']['host'] + self.rule['牛牛']['visitor'], headers={'deviceid': nnDeviceId, 'token': '', 'User-Agent': 'okhttp/4.12.0', 'client': 'app', 'devicetype': 'Android'}, timeout=15, verify=False)
             self.niuniu_token = ((self.safe_json(tkhtml).get('data') or {}).get('token') or '')
         except Exception:
             self.niuniu_token = ''
@@ -243,7 +248,7 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
             elif tid == '牛牛':
                 condition = {'typeId': 'S1'}
                 if area and area != '全部': condition['classify'] = area
-                res = self.safe_json(self.req(p['host'] + p['list'], method='POST', headers=self.niuniu_headers, data={'condition': condition, 'pageNum': page, 'pageSize': 24}))
+                res = self.safe_json(self.req(p['host'] + p['list'], method='POST', headers=self.niuniu_headers, data={'condition': condition, 'pageNum': page, 'pageSize': 24}, timeout=15, verify=False))
                 for it in ((res.get('data') or {}).get('records') or []):
                     videos.append({'vod_id': f'牛牛@{it.get("id")}', 'vod_name': it.get('name', ''), 'vod_pic': it.get('cover', ''), 'vod_remarks': prefix + (str(it.get('totalEpisode')) + '集' if it.get('totalEpisode') else ''), 'vod_content': it.get('description', '')})
             elif tid == '围观':
@@ -353,8 +358,8 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
                 d = res.get('data') or {}; vids = d.get('vid_list') or []
                 vod.update({'vod_name': d.get('playlet_title', '未知短剧'), 'vod_pic': d.get('playlet_poster', ''), 'vod_content': f'热度值:{d.get("hot_value",0)}\n题材:{d.get("tag_text","")}\n集数:{d.get("episodes_num",0)}\n简介:{d.get("description","")}', 'vod_remarks': f'共{len(vids)}集', 'vod_director': d.get('tag_text', ''), 'vod_year': d.get('create_time', ''), 'vod_play_from': '百度专线', 'vod_play_url': '#'.join([f'第{i+1}集${did}@{v}' for i, v in enumerate(vids)])})
             elif platform == '牛牛':
-                desc = self.safe_json(self.req(p['host'] + p['desc'], method='POST', headers=self.niuniu_headers, data={'id': did, 'typeId': 'S1'})).get('data') or {}
-                lst = self.safe_json(self.req(p['host'] + p['detail'], method='POST', headers=self.niuniu_headers, data={'id': did, 'source': 0, 'typeId': 'S1', 'userId': '546932'})).get('data') or {}
+                desc = self.safe_json(self.req(p['host'] + p['desc'], method='POST', headers=self.niuniu_headers, data={'id': did, 'typeId': 'S1'}, timeout=15, verify=False)).get('data') or {}
+                lst = self.safe_json(self.req(p['host'] + p['detail'], method='POST', headers=self.niuniu_headers, data={'id': did, 'source': 0, 'typeId': 'S1', 'userId': '546932'}, timeout=15, verify=False)).get('data') or {}
                 playUrls = '#'.join([f'{ep.get("episode")}${did}+{ep.get("id")}' for ep in (lst.get('episodeList') or [])]) if lst.get('url') else ''
                 if not playUrls and lst.get('thirdPlayId'):
                     thirdPlayId = lst.get('thirdPlayId')
@@ -578,7 +583,7 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
                 arr = idv.split('+')
                 if len(arr) == 2:
                     ep = re.search(r'\d+', arr[0]); ep = ep.group(0) if ep else ''
-                    res = self.safe_json(self.req(self.rule['牛牛']['host'] + '/api/v1/app/play/movieDetails', method='POST', headers=self.niuniu_headers, data={'id': arr[1], 'source': 0, 'typeId': 'S1', 'userId': '546932', 'episodeId': ep}))
+                    res = self.safe_json(self.req(self.rule['牛牛']['host'] + '/api/v1/app/play/movieDetails', method='POST', headers=self.niuniu_headers, data={'id': arr[1], 'source': 0, 'typeId': 'S1', 'userId': '546932', 'episodeId': ep}, timeout=15, verify=False))
                     if res.get('code') == 200 and (res.get('data') or {}).get('url'):
                         return {'parse': 0, 'url': res['data']['url']}
                 elif len(arr) == 3:
@@ -681,7 +686,7 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
             post = {'data': json.dumps({'data': {'from': 'feed', 'pd': 'feed', 'query': wd, 'refreshIndex': page, 'timestamp': t, 'version': version}}, ensure_ascii=False)}
             for it in ((self.safe_json(self.req(p['host'] + p['search'], method='POST', headers=self.aggConfig['headers']['baidu'], data=post)).get('data') or {}).get('items') or []): reslist.append({'vod_id': f'百度@{it.get("collId")}', 'vod_name': it.get('title',''), 'vod_pic': it.get('img',''), 'vod_remarks': prefix + it.get('updateStatus','更新中')})
         elif siteId == '牛牛':
-            for it in ((self.safe_json(self.req(p['host'] + p['search'], method='POST', headers=self.niuniu_headers, data={'condition': {'typeId': 'S1', 'value': wd}, 'pageNum': page, 'pageSize': 24})).get('data') or {}).get('records') or []): reslist.append({'vod_id': f'牛牛@{it.get("id")}', 'vod_name': it.get('name',''), 'vod_pic': it.get('cover',''), 'vod_remarks': prefix + (str(it.get('totalEpisode'))+'集' if it.get('totalEpisode') else '')})
+            for it in ((self.safe_json(self.req(p['host'] + p['search'], method='POST', headers=self.niuniu_headers, data={'condition': {'typeId': 'S1', 'value': wd}, 'pageNum': page, 'pageSize': 24}, timeout=15, verify=False)).get('data') or {}).get('records') or []): reslist.append({'vod_id': f'牛牛@{it.get("id")}', 'vod_name': it.get('name',''), 'vod_pic': it.get('cover',''), 'vod_remarks': prefix + (str(it.get('totalEpisode'))+'集' if it.get('totalEpisode') else '')})
         elif siteId == '围观':
             for it in self.safe_json(self.req(p['host'] + p['search'], method='POST', data={'audience': '全部受众', 'page': page, 'pageSize': 30, 'searchWord': wd, 'subject': '全部主题'})).get('data') or []: reslist.append({'vod_id': f'围观@{it.get("oneId")}', 'vod_name': it.get('title',''), 'vod_pic': it.get('vertPoster') or it.get('horizonPoster') or '', 'vod_remarks': f'围观 | 集数:{it.get("episodeCount",0)}'})
         elif siteId == '西饭':
@@ -770,7 +775,7 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
         }
         return {k: [{'key': 'area', 'name': '分类', 'value': [{'n': n, 'v': v} for n, v in vals]}] for k, vals in simple.items()}
 
-    def req(self, url, method='GET', headers=None, data=None, timeout=None):
+    def req(self, url, method='GET', headers=None, data=None, timeout=None, verify=None):
         try:
             h = dict(self.aggConfig['headers']['default']); h.update(headers or {})
             if method.upper() == 'POST':
@@ -778,9 +783,9 @@ MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDwCPsMptVn80Im4VVfJ2uAkjs7NpJz
                 if isinstance(data, (dict, list)):
                     ct = h.get('Content-Type') or h.get('content-type') or ''
                     body = json.dumps(data, ensure_ascii=False) if 'json' in ct else urlencode(data)
-                r = self.session.post(url, headers=h, data=body, timeout=timeout or self.timeout)
+                r = self.session.post(url, headers=h, data=body, timeout=timeout or self.timeout, verify=verify)
             else:
-                r = self.session.get(url, headers=h, timeout=timeout or self.timeout)
+                r = self.session.get(url, headers=h, timeout=timeout or self.timeout, verify=verify)
             r.encoding = r.apparent_encoding or 'utf-8'
             return r.text
         except Exception as e:
