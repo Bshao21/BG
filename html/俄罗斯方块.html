@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>俄罗斯方块 · 旋转优化</title>
+<style>
+:root{--bg:#0a0d1a;--panel:rgba(255,255,255,.06);--text:#f0f0f0;--accent:#5ea3f9}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC",sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;overflow:hidden}
+
+/* 给底部文字留出空间，并让整个游戏区域整体上移 */
+.game{display:flex;flex-direction:column;align-items:center;gap:8px;padding-bottom:70px}
+.top-row{display:flex;gap:12px;align-items:flex-start}
+canvas{border-radius:8px}
+.main-canvas{background:#111420;border:1px solid rgba(255,255,255,.1)}
+
+/* 右侧信息栏 */
+.side-col{display:flex;flex-direction:column;gap:8px;width:110px}
+.next-box{background:var(--panel);border-radius:8px;padding:6px;text-align:center}
+.next-box .lbl{font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px}
+
+/* 分数/等级/行数：排成一行 */
+.stats{display:flex;gap:4px}
+.info-box{flex:1;background:var(--panel);border-radius:8px;padding:6px 2px;text-align:center}
+.info-box .lbl{font-size:9px;color:rgba(255,255,255,.5)}
+.info-box .val{font-size:14px;font-weight:800}
+
+/* 难度按钮：2×2 网格 */
+.diff{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:4px;
+}
+.diff button{
+background:var(--panel);border:1px solid rgba(255,255,255,.1);
+color:var(--text);padding:6px 0;border-radius:6px;
+font-size:11px;cursor:pointer;transition:.15s;
+}
+.diff button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+
+/* 难度说明小字 */
+.diff-desc{
+font-size:10px;color:rgba(255,255,255,.5);
+text-align:center;line-height:1.3;height:26px;
+}
+
+/* 重新开始 / 暂停 */
+.reset-btn{
+background:var(--panel);border:1px solid rgba(255,255,255,.1);
+color:var(--text);padding:9px 0;border-radius:6px;
+font-size:12px;cursor:pointer;width:100%;
+}
+.reset-btn:active{background:rgba(255,255,255,.15)}
+
+/* ---- 控制器（再往下移一点） ---- */
+.pad{
+display:flex;
+justify-content:space-between;
+align-items:center;
+width:260px;
+margin-top:40px;   /* 原来 26px，再往下移动 */
+}
+.dpad{position:relative;width:150px;height:150px}
+.dpad button{
+position:absolute;background:var(--panel);border:1px solid rgba(255,255,255,.1);
+color:var(--text);font-size:16px;cursor:pointer;
+display:flex;align-items:center;justify-content:center;padding:0;
+-webkit-tap-highlight-color:transparent;
+}
+.dpad button:active{background:rgba(255,255,255,.15)}
+.dpad .up{top:0;left:50px;width:50px;height:50px;border-radius:10px 10px 0 0}
+.dpad .down{bottom:0;left:50px;width:50px;height:50px;border-radius:0 0 10px 10px}
+.dpad .left{top:50px;left:0;width:50px;height:50px;border-radius:10px 0 0 10px}
+.dpad .right{top:50px;right:0;width:50px;height:50px;border-radius:0 10px 10px 0}
+.dpad .center{top:50px;left:50px;width:50px;height:50px;border-radius:0;background:rgba(255,255,255,.03);pointer-events:none}
+
+/* ----- 旋转按钮 ----- */
+.rotate-btn{
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.05s;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.rotate-btn:active{
+  background: rgba(255,255,255,.15);
+  border-radius: 50%;
+  transform: scale(0.97);
+}
+.rotate-btn svg{
+  display: block;
+  pointer-events: none;
+}
+
+/* ---- 底部加密署名（往上移 + 字体加大） ---- */
+.brand{
+  position: fixed;
+  left: 0; right: 0; bottom: 28px;   /* 原来 12px，往上移动 */
+  text-align: center;
+  font-size: 20px;                    /* 原来 13px，字体加大 */
+  letter-spacing: 8px;
+  color: rgba(255,255,255,.40);
+  font-weight: 300;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  text-shadow: 0 0 12px rgba(94,163,249,.35);
+}
+</style>
+</head>
+<body>
+<div class="game">
+
+<!-- 顶部：主画布 + 右侧信息栏 -->
+<div class="top-row">
+<canvas class="main-canvas" id="main" width="200" height="400"></canvas>
+
+<div class="side-col">
+<div class="next-box">
+<div class="lbl">下一个</div>
+<canvas id="next" width="96" height="80"></canvas>
+</div>
+
+<!-- 分数 / 等级 / 行数 -->
+<div class="stats">
+<div class="info-box"><div class="lbl">分</div><div class="val" id="score">0</div></div>
+<div class="info-box"><div class="lbl">级</div><div class="val" id="level">1</div></div>
+<div class="info-box"><div class="lbl">行</div><div class="val" id="lines">0</div></div>
+</div>
+
+<!-- 难度按钮 -->
+<div class="diff">
+<button data-d="0" class="on">新手</button>
+<button data-d="1">普通</button>
+<button data-d="2">高级</button>
+<button data-d="3">专家</button>
+</div>
+<div class="diff-desc" id="diffDesc">5 种方块 · 慢 · ×1</div>
+
+<!-- 重新开始 + 暂停 -->
+<button class="reset-btn" id="btnReset">重新开始</button>
+<button class="reset-btn" id="btnPause">⏸ 暂停</button>
+</div>
+</div>
+
+<!-- 控制器 -->
+<div class="pad">
+<div class="dpad">
+<button class="up"    id="btnU">▲</button>
+<button class="left"  id="btnL">◀</button>
+<button class="center"></button>
+<button class="right" id="btnR">▶</button>
+<button class="down"  id="btnD">▼</button>
+</div>
+<button class="rotate-btn" id="btnRot" aria-label="旋转">
+  <svg viewBox="0 0 24 24" width="46" height="46" fill="none"
+       stroke="currentColor" stroke-width="2.6"
+       stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.2 A 8.8 8.8 0 1 0 20.8 12"/>
+    <polyline points="8.6 3.2 12 3.2 12 6.6"/>
+  </svg>
+</button>
+</div>
+</div>
+
+<!-- 底部加密署名 -->
+<div class="brand" id="brand"></div>
+
+<script>
+(function(){
+var COLS=10,ROWS=20,CELL=20,score=0,level=1,lines=0,diff=0,
+    grid=[],cur,next,pos,gameOver=false,paused=false,timer=null,
+    mainC=document.getElementById('main'),main=mainC.getContext('2d'),
+    nextC=document.getElementById('next'),nx=nextC.getContext('2d'),
+    pauseBtn=document.getElementById('btnPause'),
+    diffDesc=document.getElementById('diffDesc');
+
+/* ===== 底部署名加密：Base64 + 码点偏移(-7) ===== */
+(function(){
+  try{
+    var _enc = "WzIwODYwLDIxNzQwLDMyNjYxLDIxMjc3XQ==";
+    var _arr = JSON.parse(atob(_enc));
+    var _txt = _arr.map(function(c){ return String.fromCharCode(c - 7); }).join('');
+    var el = document.getElementById('brand');
+    if(el) el.textContent = _txt;
+  }catch(e){ /* 解码失败则静默 */ }
+})();
+
+var PIECES=[
+[[1,1,1,1]],
+[[1,1],[1,1]],
+[[0,1,0],[1,1,1]],
+[[1,0,0],[1,1,1]],
+[[0,0,1],[1,1,1]],
+[[0,1,1],[1,1,0]],
+[[1,1,0],[0,1,1]]
+];
+var COLORS=['#0ff','#ff0','#a0f','#f80','#08f','#0f0','#f00'];
+
+var DIFF_CONFIG=[
+{ name:'新手', pool:[0,1,2,3,4], baseSpeed:900, speedStep:40, minSpeed:160, scoreMul:1, desc:'5 种方块 · 慢 · ×1' },
+{ name:'普通', pool:[0,1,2,3,4,5,6], baseSpeed:700, speedStep:55, minSpeed:100, scoreMul:1.5, desc:'7 种方块 · 中速 · ×1.5' },
+{ name:'高级', pool:[0,1,2,3,4,5,6], baseSpeed:450, speedStep:70, minSpeed:60, scoreMul:2.5, desc:'7 种方块 · 极快 · ×2.5' },
+{ name:'专家', pool:[0,1,2,3,4,5,6], baseSpeed:280, speedStep:85, minSpeed:40, scoreMul:4, desc:'极速 · 加速猛 · ×4' }
+];
+
+function rand(){ var pool=DIFF_CONFIG[diff].pool; return pool[Math.floor(Math.random()*pool.length)]; }
+function drawBlock(ctx,x,y,ci,size){size=size||CELL;ctx.fillStyle=COLORS[ci];ctx.fillRect(x,y,size-1,size-1);ctx.fillStyle='rgba(255,255,255,.2)';ctx.fillRect(x,y,size-1,3);ctx.fillRect(x,y,2,size-1)}
+function newPiece(){var i=rand();return{shape:PIECES[i].map(function(r){return r.slice()}),color:i}}
+function rotate(s){return s[0].map(function(_,i){return s.map(function(r){return r[i]}).reverse()})}
+function valid(shape,px,py){
+for(var r=0;r<shape.length;r++)for(var c=0;c<shape[r].length;c++)
+if(shape[r][c]){var x=px+c,y=py+r;if(x<0||x>=COLS||y>=ROWS||(y>=0&&grid[y][x]!==-1))return false}
+return true;
+}
+function place(){
+for(var r=0;r<cur.shape.length;r++)for(var c=0;c<cur.shape[r].length;c++)
+if(cur.shape[r][c]){var y=pos.y+r;if(y<0){gameOver=true;return}grid[y][pos.x+c]=cur.color}
+clearLines();
+cur=next;next=newPiece();pos={x:Math.floor((COLS-cur.shape[0].length)/2),y:0};
+if(!valid(cur.shape,pos.x,pos.y))gameOver=true;
+}
+function clearLines(){
+var cleared=0;
+for(var r=ROWS-1;r>=0;r--){
+if(grid[r].every(function(c){return c!==-1})){
+grid.splice(r,1);grid.unshift(new Array(COLS).fill(-1));
+cleared++;r++;
+}
+}
+if(cleared){
+var base=cleared*cleared*100;
+var mul=DIFF_CONFIG[diff].scoreMul;
+score+=Math.round(base*mul);
+lines+=cleared;
+level=Math.floor(lines/10)+1;
+}
+}
+function draw(){
+main.fillStyle='#111420';main.fillRect(0,0,200,400);
+for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++)if(grid[r][c]!==-1)drawBlock(main,c*CELL,r*CELL,grid[r][c]);
+if(!gameOver&&cur)for(var r=0;r<cur.shape.length;r++)for(var c=0;c<cur.shape[r].length;c++)
+if(cur.shape[r][c]){var y=pos.y+r;if(y>=0)drawBlock(main,(pos.x+c)*CELL,y*CELL,cur.color)}
+
+nx.fillStyle='#111420';nx.fillRect(0,0,96,80);
+if(next){
+var nShape=next.shape;
+var nCols=nShape[0].length, nRows=nShape.length;
+var cellSize=16;
+var offsetX=(96-nCols*cellSize)/2;
+var offsetY=(80-nRows*cellSize)/2;
+for(var r=0;r<nRows;r++)for(var c=0;c<nCols;c++)
+if(nShape[r][c])drawBlock(nx,offsetX+c*cellSize,offsetY+r*cellSize,next.color,cellSize);
+}
+
+document.getElementById('score').textContent=score;
+document.getElementById('level').textContent=level;
+document.getElementById('lines').textContent=lines;
+
+if(paused)drawPauseIcon();
+}
+function drawPauseIcon(){
+main.fillStyle='rgba(0,0,0,.45)';main.fillRect(0,0,200,400);
+var barW=14,barH=44,gap=14,totalW=barW*2+gap;
+var startX=(200-totalW)/2,startY=(400-barH)/2;
+main.fillStyle='rgba(255,255,255,.92)';
+function roundRect(x,y,w,h,r){
+main.beginPath();main.moveTo(x+r,y);
+main.arcTo(x+w,y,x+w,y+h,r);main.arcTo(x+w,y+h,x,y+h,r);
+main.arcTo(x,y+h,x,y,r);main.arcTo(x,y,x+w,y,r);
+main.closePath();main.fill();
+}
+roundRect(startX,startY,barW,barH,4);
+roundRect(startX+barW+gap,startY,barW,barH,4);
+}
+function drop(){pos.y++;if(!valid(cur.shape,pos.x,pos.y)){pos.y--;place()}draw()}
+function shift(dx){if(valid(cur.shape,pos.x+dx,pos.y))pos.x+=dx;draw()}
+function rotateCur(){var r=rotate(cur.shape);if(valid(r,pos.x,pos.y))cur.shape=r;draw()}
+function hardDrop(){while(valid(cur.shape,pos.x,pos.y+1))pos.y++;place();draw()}
+
+function getSpeed(){
+var cfg=DIFF_CONFIG[diff];
+return Math.max(cfg.minSpeed,cfg.baseSpeed-(level-1)*cfg.speedStep);
+}
+function tick(){
+if(gameOver||paused){
+clearInterval(timer);timer=null;
+if(gameOver){
+main.fillStyle='rgba(0,0,0,.6)';main.fillRect(0,0,200,400);
+main.fillStyle='#fff';main.font='18px sans-serif';main.textAlign='center';
+main.fillText('游戏结束',100,195);main.font='13px sans-serif';
+main.fillText('分数：'+score,100,225);
+}
+return;
+}
+drop();
+if(timer){clearInterval(timer);timer=setInterval(tick,getSpeed());}
+}
+function togglePause(){
+if(gameOver)return;
+paused=!paused;
+if(paused){
+if(timer){clearInterval(timer);timer=null;}
+pauseBtn.textContent='▶ 继续';
+pauseBtn.style.background='var(--accent)';
+pauseBtn.style.borderColor='var(--accent)';
+draw();
+}else{
+pauseBtn.textContent='⏸ 暂停';
+pauseBtn.style.background='';
+pauseBtn.style.borderColor='';
+timer=setInterval(tick,getSpeed());
+draw();
+}
+}
+function start(){
+score=0;level=1;lines=0;gameOver=false;paused=false;
+pauseBtn.textContent='⏸ 暂停';
+pauseBtn.style.background='';
+pauseBtn.style.borderColor='';
+grid=[];
+for(var i=0;i<ROWS;i++)grid.push(new Array(COLS).fill(-1));
+cur=newPiece();next=newPiece();pos={x:Math.floor((COLS-cur.shape[0].length)/2),y:0};
+if(timer)clearInterval(timer);
+timer=setInterval(tick,getSpeed());
+draw();
+}
+
+/* ===== 向下键长按：短按=下移一格，长按=速降 ===== */
+var LONG_PRESS_MS = 200;
+var REPEAT_MS = 50;
+var downTimer = null;
+var downStartTimer = null;
+
+function startDownPress(){
+  if(gameOver || paused) return;
+  drop();
+  downStartTimer = setTimeout(function(){
+    downTimer = setInterval(function(){
+      if(gameOver || paused){ stopDownPress(); return; }
+      drop();
+    }, REPEAT_MS);
+  }, LONG_PRESS_MS);
+}
+function stopDownPress(){
+  if(downStartTimer){ clearTimeout(downStartTimer); downStartTimer = null; }
+  if(downTimer){ clearInterval(downTimer); downTimer = null; }
+}
+
+document.addEventListener('keydown',function(e){
+if(e.key==='p'||e.key==='P'||e.key==='Escape'){togglePause();return;}
+if(gameOver||paused)return;
+if(e.key==='ArrowLeft')shift(-1);
+else if(e.key==='ArrowRight')shift(1);
+else if(e.key==='ArrowUp')rotateCur();
+else if(e.key===' '){e.preventDefault();hardDrop();}
+else if(e.key==='ArrowDown'){
+  e.preventDefault();
+  if(e.repeat) return;
+  startDownPress();
+}
+});
+document.addEventListener('keyup',function(e){
+if(e.key==='ArrowDown') stopDownPress();
+});
+
+document.getElementById('btnL').onclick=function(){if(!paused)shift(-1)};
+document.getElementById('btnR').onclick=function(){if(!paused)shift(1)};
+document.getElementById('btnU').onclick=function(){if(!paused)rotateCur()};
+document.getElementById('btnRot').onclick=function(){if(!paused)rotateCur()};
+
+var btnD = document.getElementById('btnD');
+btnD.addEventListener('mousedown', function(e){ e.preventDefault(); startDownPress(); });
+btnD.addEventListener('touchstart', function(e){ e.preventDefault(); startDownPress(); }, {passive:false});
+document.addEventListener('mouseup', stopDownPress);
+document.addEventListener('touchend', stopDownPress);
+document.addEventListener('touchcancel', stopDownPress);
+
+document.getElementById('btnPause').onclick=togglePause;
+document.getElementById('btnReset').onclick=start;
+
+document.querySelectorAll('.diff button').forEach(function(b){
+b.onclick=function(){
+diff=parseInt(b.dataset.d);
+document.querySelectorAll('.diff button').forEach(function(x){x.classList.remove('on')});
+b.classList.add('on');
+diffDesc.textContent=DIFF_CONFIG[diff].desc;
+start();
+}
+});
+diffDesc.textContent=DIFF_CONFIG[diff].desc;
+start();
+})();
+</script>
+</body>
+</html>

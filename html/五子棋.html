@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>五子棋</title>
+<style>
+:root{--bg:#0a0d1a;--panel:rgba(255,255,255,.06);--text:#f0f0f0;--accent:#5ea3f9}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none}
+.header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;justify-content:center}
+.title{font-size:26px;font-weight:900;color:var(--accent)}
+.diff{display:flex;gap:4px}
+.diff button{background:var(--panel);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.diff button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.status{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:4px}
+.turn-dot{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin:0 3px}
+.turn-dot.b{background:#222;border:2px solid #666}
+.turn-dot.w{background:#eee;border:2px solid #ccc}
+.board{position:relative;width:min(92vw,440px);aspect-ratio:1;background:#1a1e2c;border-radius:12px}
+canvas{display:block;width:100%;height:100%}
+.btn{background:var(--panel);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:6px 16px;border-radius:8px;font-size:14px;cursor:pointer;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="header">
+<span class="title">五子棋</span>
+<div class="diff">
+<button data-d="0" class="on">新手</button>
+<button data-d="1">普通</button>
+<button data-d="2">高级</button>
+</div>
+<button id="firstBtn" style="background:var(--panel);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">我方先下</button>
+</div>
+<div class="status" id="status"></div>
+<div class="board"><canvas id="c"></canvas></div>
+<button class="btn" id="reset">重新开始</button>
+<script>
+(function(){
+var N=15,S=0,diff=0,firstMove=true, // S:0白(玩家) 1黑(AI) 2结束
+    grid=[],canvas=document.getElementById('c'),ctx=canvas.getContext('2d'),
+    stEl=document.getElementById('status'),size,pad,cs,thinking=false;
+
+function init(){
+grid=[];S=0;thinking=false;
+for(var i=0;i<N;i++){grid[i]=[];for(var j=0;j<N;j++)grid[i][j]=0}
+resize();draw();updateStatus();
+if(!firstMove){grid[7][7]=1;S=0;draw();updateStatus();}if(!firstMove)aiMove();
+}
+function resize(){
+var w=canvas.parentElement.clientWidth;
+canvas.width=w*2;canvas.height=w*2;
+size=w*2;pad=size*0.06;cs=(size-pad*2)/(N-1);
+}
+function draw(){
+ctx.clearRect(0,0,size,size);
+ctx.fillStyle='#1a1e2c';ctx.fillRect(0,0,size,size);
+ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;
+for(var i=0;i<N;i++){
+ctx.beginPath();ctx.moveTo(pad+i*cs,pad);ctx.lineTo(pad+i*cs,pad+(N-1)*cs);ctx.stroke();
+ctx.beginPath();ctx.moveTo(pad,pad+i*cs);ctx.lineTo(pad+(N-1)*cs,pad+i*cs);ctx.stroke();
+}
+var stars=[[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
+for(var s of stars){ctx.beginPath();ctx.arc(pad+s[0]*cs,pad+s[1]*cs,3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.12)';ctx.fill()}
+for(var i=0;i<N;i++)for(var j=0;j<N;j++){
+if(!grid[i][j])continue;
+var x=pad+i*cs,y=pad+j*cs,r=cs*0.44;
+ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+var g=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r);
+if(grid[i][j]===1){g.addColorStop(0,'#555');g.addColorStop(1,'#111')}
+else if(grid[i][j]===2){g.addColorStop(0,'#fff');g.addColorStop(1,'#ccc')}
+ctx.fillStyle=g;ctx.fill();
+}
+}
+function checkWin(x,y){
+var v=grid[x][y];if(!v)return 0;
+var dirs=[[1,0],[0,1],[1,1],[1,-1]];
+for(var d of dirs){
+var c=1;
+for(var k=1;k<5;k++){var nx=x+d[0]*k,ny=y+d[1]*k;if(nx>=0&&nx<N&&ny>=0&&ny<N&&grid[nx][ny]===v)c++;else break}
+for(var k=1;k<5;k++){var nx=x-d[0]*k,ny=y-d[1]*k;if(nx>=0&&nx<N&&ny>=0&&ny<N&&grid[nx][ny]===v)c++;else break}
+if(c>=5)return v;
+}return 0;
+}
+function updateStatus(){
+if(S===2)return;
+var w=checkWinAny();if(w){S=2;draw();setTimeout(function(){alert(w===2?'你赢了！':'AI 胜！')},100);return}
+stEl.innerHTML=S===0?'轮到 <span class="turn-dot w"></span> 你 (白棋)':(thinking?'AI 思考中…':'<span class="turn-dot b"></span> AI 下棋中');
+}
+function checkWinAny(){
+for(var i=0;i<N;i++)for(var j=0;j<N;j++){var v=checkWin(i,j);if(v)return v;}return 0;
+}
+// AI评分
+function scorePos(v,me){
+var dirs=[[1,0],[0,1],[1,1],[1,-1]];
+var total=0;
+for(var d of dirs){
+var cnt=0,open=0;
+for(var k=1;k<=4;k++){var nx=v.x+d[0]*k,ny=v.y+d[1]*k;if(nx>=0&&nx<N&&ny>=0&&ny<N){if(grid[nx][ny]===me)cnt++;else if(grid[nx][ny]===0){open++;break}else break}else break}
+for(var k=1;k<=4;k++){var nx=v.x-d[0]*k,ny=v.y-d[1]*k;if(nx>=0&&nx<N&&ny>=0&&ny<N){if(grid[nx][ny]===me)cnt++;else if(grid[nx][ny]===0){open++;break}else break}else break}
+if(cnt>=4)total+=100000;
+else if(cnt===3&&open>=2)total+=10000;
+else if(cnt===3&&open===1)total+=1000;
+else if(cnt===2&&open>=2)total+=500;
+else if(cnt===2&&open===1)total+=100;
+else if(cnt===1&&open>=2)total+=50;
+else if(cnt===1&&open===1)total+=10;
+}
+return total;
+}
+function aiMove(){
+if(S!==1||S===2)return;
+thinking=true;updateStatus();
+setTimeout(function(){
+var best=null,bs=-Infinity;
+var empty=[];
+for(var i=0;i<N;i++)for(var j=0;j<N;j++)if(!grid[i][j])empty.push({x:i,y:j});
+if(diff===0){
+// 新手：优先堵玩家4连/3连，否则随机靠近
+var candidates=[];
+for(var e of empty){
+var score=scorePos(e,2)+scorePos(e,1)*1.1;
+candidates.push({p:e,s:score});
+}
+candidates.sort(function(a,b){return b.s-a.s});
+// 从高分中随机选一个
+var pool=candidates.slice(0,Math.max(3,candidates.length/2));
+var pick=pool[Math.floor(Math.random()*pool.length)];
+best=pick.p;
+}else{
+for(var e of empty){
+grid[e.x][e.y]=1;var s1=scorePos(e,1);
+grid[e.x][e.y]=0;
+grid[e.x][e.y]=2;var s0=scorePos(e,2);
+grid[e.x][e.y]=0;
+var s=s1*1.2+s0;
+if(s>bs){bs=s;best=e}
+}
+}
+grid[best.x][best.y]=1;
+var w=checkWin(best.x,best.y);
+thinking=false;
+if(w){S=2;draw();updateStatus();setTimeout(function(){alert('AI 胜！')},100);return}
+S=0;draw();updateStatus();
+},diff===0?200:(diff===1?300:100));
+}
+canvas.addEventListener('click',function(e){
+if(S!==0||thinking||S===2)return;
+var r=canvas.getBoundingClientRect();
+var rx=(e.clientX-r.left)/r.width*(N-1),ry=(e.clientY-r.top)/r.height*(N-1);
+var x=Math.round(rx),y=Math.round(ry);
+// 容错：点击离交叉点太远（>0.45格）则忽略
+if(Math.abs(rx-x)>0.45||Math.abs(ry-y)>0.45)return;
+if(x<0||x>=N||y<0||y>=N||grid[x][y])return;
+grid[x][y]=2;
+draw();
+var w=checkWin(x,y);
+if(w){S=2;updateStatus();draw();setTimeout(function(){alert('你赢了！')},100);return}
+S=1;updateStatus();draw();aiMove();
+});
+window.addEventListener('resize',function(){resize();draw()});
+document.getElementById('reset').onclick=init;
+document.querySelectorAll('.diff button').forEach(function(b){
+b.onclick=function(){
+diff=parseInt(b.dataset.d);
+document.querySelectorAll('.diff button').forEach(function(x){x.classList.remove('on')});
+b.classList.add('on');
+init();
+}
+});
+init();
+document.getElementById('firstBtn').onclick=function(){
+firstMove=!firstMove;
+this.textContent=firstMove?'我方先下':'对方先下';
+init();
+};
+})();
+</script>
+</body>
+</html>
