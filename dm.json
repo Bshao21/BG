@@ -1,5 +1,5 @@
 {
-    "spider": "./jar/danmu-spider-native.jar;md5;75173e54b10d99e0b6f8563dfb60d7c6",
+    "spider": "./jar/danmu-spider-native.jar;md5;90049dcbf0088338af22c8252bc942b3",
     "lives": [],
     "sites": [
         {
@@ -11,15 +11,13 @@
             "ext": {
                 "apiUrls": [
                     "http://192.168.7.67:9321/793641910|兵哥自用部署",
-                    "http://192.168.110.42:9321/793641910|摸鱼部署弹幕",
+                    "http://192.168.110.8:9321/793641910|摸鱼部署弹幕",
                     "https://dandan.wenjian.de/wenjian|公益弹幕",
-                    "https://dm.longemby.com/longemby|兵哥弹幕",
-                    "https://logvar.hhht.cc.cd|公益弹幕2",
-                    "http://ecs.dysobo.cn:9321/87654321|公益弹幕3",
+                    "https://danmu.iyo.us.ci/theft-dastardly-prognosis-hula-agenda2-dropkick|公益弹幕2",
                     "https://danmu.iyo.us.ci/theft-dastardly-prognosis-hula-agenda2-dropkick|🧧弹幕源3",
                     "https://justdanmu.irisnb.com/iris-danmu|🧧弹幕源4",
                     "https://danmu.qianting168.com/456765847636987622146901|🧧弹幕源5",
-                    "https://dm.ljiaovm.com/luosen|🧧弹幕源6"
+                    "https://logvar.hhht.cc.cd|🧧弹幕源6"
                 ],
                 "titleMappingsUrl": "https://seep.eu.org/https://raw.githubusercontent.com/goodcommunication/mydm/main/yins.json"
             }
