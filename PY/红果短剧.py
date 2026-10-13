@@ -222,11 +222,20 @@ def _aes_cbc_decrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
 
 SITE = "https://hongguoduanju.com"
 EPISODE_PREFIX = "hg-episode-v1:"
+# 版本标记：详情页备注里会带上，用来确认壳里跑的是哪一版
+_HG_VERSION = "v2 设备轮换版"
+# 红果每集视频模型按清晰度返回多条独立线路（360/480/540/720/1080），
+# 每条带 main_url + backup_url 双 CDN 与独立加密材料。这里把清晰度作为
+# TVBox 多线路暴露；内封音/视轨在解密 _rewrite_moov 时天然全部保留。
 _HG_QUALITY_LINES = (
-    ("1080", base64.b64decode("57qi5p6c8J+np+efreWJpw==").decode("utf-8")),
+    ("1080", "超清"),
+    ("720",  "高清"),
+    ("540",  "标准"),
+    ("480",  "流畅"),
+    ("360",  "极速"),
 )
 _QUALITY_LINE_NAME_TO_Q = {
-    "兵哥": "1080", "高清": "720", "标准": "540",
+    "超清": "1080", "高清": "720", "标准": "540",
     "流畅": "480", "极速": "360", "1080": "1080", "720": "720",
     "540": "540", "480": "480", "360": "360",
 }
@@ -1087,7 +1096,7 @@ def _stream_session(video_id: str, config: Mapping[str, Any], quality: str = "10
         session = sessions.get(cache_key)
     if session is not None:
         return session
-    model = _video_model(video_id, config)
+    model, did, iid = _video_model_rotate(video_id, config)
     _, item = _select_quality(_video_list_from_model(model), quality)
     url = _media_url(item)
     spade = _spade_value(item)
@@ -3449,6 +3458,62 @@ def _video_list_from_model(model: Mapping[str, Any]) -> Any:
     return None
 
 
+# ---- 设备标识轮换 ----
+# 红果的取流接口按设备限流：一台设备成功取过一次流之后，同一台设备再取
+#（哪怕换一集、换一个清晰度）会回空 video_list。所以每一集第一次取流都必须
+# 用一台“干净”设备；失败时再换下一台重试，而不是抱着同一台死等。
+_HG_DEVICE_ATTEMPTS = 4          # 单个视频最多换几台设备
+_HG_DEVICE_RETRY_SLEEP = 0.35    # 换设备之间的等待（秒）
+
+
+def _new_identity() -> tuple[str, str]:
+    """生成一台新的合法设备身份 (device_id, install_id)。"""
+    return (
+        str(random.randint(10**17, 10**18 - 1)),
+        str(random.randint(10**17, 10**18 - 1)),
+    )
+
+
+def _identity_chain(config: Mapping[str, Any] | None) -> list[tuple[str, str]]:
+    """设备尝试队列：先用调用方给的标识，用完再补全新设备。"""
+    config = config or {}
+    chain: list[tuple[str, str]] = []
+    did = _text(config.get("device_id"))
+    iid = _text(config.get("install_id"))
+    if did and iid:
+        chain.append((did, iid))
+    total = max(1, _HG_DEVICE_ATTEMPTS)
+    while len(chain) < total:
+        chain.append(_new_identity())
+    return chain
+
+
+def _is_rate_limited_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return any(key in text for key in ("403", "429", "forbidden", "too many", "limit"))
+
+
+def _video_model_rotate(video_id: str, config: Mapping[str, Any] | None) -> tuple[dict[str, Any], str, str]:
+    """换设备取流模型；返回 (model, device_id, install_id)。全部设备都被限流时抛错。"""
+    last_err: Exception | None = None
+    chain = _identity_chain(config)
+    for index, (did, iid) in enumerate(chain):
+        try:
+            model = _video_model(video_id, {"device_id": did, "install_id": iid})
+            rows = _video_list_from_model(model)
+            if rows:
+                return model, did, iid
+            last_err = HongguoPluginError("取流为空（设备已限流）")
+        except Exception as exc:  # 换下一台设备继续
+            last_err = exc
+        if index + 1 < len(chain):
+            try:
+                time.sleep(_HG_DEVICE_RETRY_SLEEP)
+            except Exception:
+                pass
+    raise HongguoPluginError("换 %d 台设备仍取流失败：%s" % (len(chain), last_err))
+
+
 _QUALITY_ORDER = ("2160", "1440", "1080", "720", "576", "540", "480", "360")
 
 def _int(value: Any) -> int:
@@ -3952,10 +4017,13 @@ class Spider(_BaseSpider):
             )
             play_from.append(line_name)
             play_url.append(eps)
-        return {"list": [{"vod_id": sid, "vod_name": str(s.get("series_name") or ""), "vod_pic": str(s.get("series_cover") or ""), "vod_year": "", "vod_area": "", "vod_director": "", "vod_actor": ",".join(actors), "vod_content": str(s.get("series_intro") or ""), "vod_remarks": str(s.get("episode_right_text") or ""), "vod_play_from": "$$$".join(play_from), "vod_play_url": "$$$".join(play_url)}]}
+        return {"list": [{"vod_id": sid, "vod_name": str(s.get("series_name") or ""), "vod_pic": str(s.get("series_cover") or ""), "vod_year": "", "vod_area": "", "vod_director": "", "vod_actor": ",".join(actors), "vod_content": str(s.get("series_intro") or ""), "vod_remarks": "%s · %s" % (str(s.get("episode_right_text") or ""), _HG_VERSION), "vod_play_from": "$$$".join(play_from), "vod_play_url": "$$$".join(play_url)}]}
     def playerContent(self, flag, id, vipFlags=None):
-        # 从线路名（flag，如“兵哥-红果”）与集 token 双路解析清晰度。
+        # 从线路名（flag，如“红果超清/红果高清”）与集 token 双路解析清晰度。
         # token 已是 'hg-episode-v1:<q>:<vid>'，flag 用于旧壳只传线路名时兜底。
+        # 关键：红果按设备限流——一台设备取过一次流后再取就回空。所以每播一集
+        # 都换一台“干净”设备，第 2 集起才拿得到流；取流失败时会再自动换设备重试。
+        self.device_id, self.install_id = _new_identity()
         token_q, vid = _split_episode_token(id)
         line_q = "1080"
         for name_key, candidate_q in _QUALITY_LINE_NAME_TO_Q.items():
@@ -4086,69 +4154,86 @@ class Spider(_BaseSpider):
                 if cached:
                     return [200, "video/mp4", cached]
 
-            model = _video_model(vid, cfg)
-            rows = _video_list_from_model(model)
-            if not rows:
-                return [500, "text/plain; charset=utf-8", b"empty video list"]
-
             last_err = None
-            for wanted in quals:
+            devices = _identity_chain(cfg)
+            for dev_index, (did, iid) in enumerate(devices):
+                tag = "设备#%d" % (dev_index + 1)
                 try:
-                    # 再查一次该清晰度缓存（model 解析后）
-                    cached = _hg_cache_get(vid, wanted)
-                    if cached:
-                        return [200, "video/mp4", cached]
-
-                    _, item = _select_quality(rows, wanted)
-                    url = _media_url(item)
-                    spade = _spade_value(item)
-                    if not url or not spade:
-                        last_err = "missing url/spade q=%s" % wanted
-                        continue
-                    try:
-                        key_seed = _key_seed_from_model(model)
-                        if key_seed:
-                            url = _decrypt_spade_url(url, key_seed)
-                    except Exception:
-                        pass
-
-                    # 下载超时：纯 AES 环境更短，避免壳端空等后失败
-                    dl_timeout = 150 if _aes_is_fast() else 90
-                    media_headers = {
-                        "User-Agent": MEDIA_UA,
-                        "Referer": "https://novel.snssdk.com/",
-                    }
-                    try:
-                        body = _multi_download(
-                            url,
-                            headers=media_headers,
-                            timeout=dl_timeout,
-                            workers=4 if _aes_is_fast() else 3,
-                        )
-                    except Exception as dl_err:
-                        last_err = "download failed q=%s err=%s" % (wanted, dl_err)
-                        continue
-                    if not body:
-                        last_err = "empty body q=%s" % wanted
-                        continue
-
-                    # 纯 AES 且体积过大时跳过超大 1080，减少必超时
-                    if (not _aes_is_fast()) and wanted in ("1080", "4k") and len(body) > 45 * 1024 * 1024:
-                        last_err = "skip large %s without native AES size=%s" % (wanted, len(body))
-                        continue
-
-                    plain = decrypt_mp4_cenc(body, derive_content_key(spade))
-                    if len(plain) < 64 or (b"ftyp" not in plain[:64] and b"moov" not in plain[:4096]):
-                        last_err = "bad mp4 after decrypt q=%s" % wanted
-                        continue
-                    try:
-                        _hg_cache_put(vid, wanted, plain)
-                    except Exception:
-                        pass
-                    return [200, "video/mp4", plain]
-                except Exception as one_err:
-                    last_err = "%s q=%s" % (one_err, wanted)
+                    model = _video_model(vid, {"device_id": did, "install_id": iid})
+                except Exception as dev_err:
+                    last_err = "%s 取流请求失败: %s" % (tag, dev_err)
+                    if dev_index + 1 < len(devices):
+                        time.sleep(_HG_DEVICE_RETRY_SLEEP)
                     continue
+                rows = _video_list_from_model(model)
+                if not rows:
+                    # 这台设备已被限流（取过一次了）——直接换下一台，别在它身上耗
+                    last_err = "%s 取流为空（设备已限流）" % tag
+                    if dev_index + 1 < len(devices):
+                        time.sleep(_HG_DEVICE_RETRY_SLEEP)
+                    continue
+
+                for wanted in quals:
+                    try:
+                        # 再查一次该清晰度缓存（model 解析后）
+                        cached = _hg_cache_get(vid, wanted)
+                        if cached:
+                            return [200, "video/mp4", cached]
+
+                        _, item = _select_quality(rows, wanted)
+                        url = _media_url(item)
+                        spade = _spade_value(item)
+                        if not url or not spade:
+                            last_err = "%s missing url/spade q=%s" % (tag, wanted)
+                            continue
+                        try:
+                            key_seed = _key_seed_from_model(model)
+                            if key_seed:
+                                url = _decrypt_spade_url(url, key_seed)
+                        except Exception:
+                            pass
+
+                        # 下载超时：纯 AES 环境更短，避免壳端空等后失败
+                        dl_timeout = 150 if _aes_is_fast() else 90
+                        media_headers = {
+                            "User-Agent": MEDIA_UA,
+                            "Referer": "https://novel.snssdk.com/",
+                        }
+                        try:
+                            body = _multi_download(
+                                url,
+                                headers=media_headers,
+                                timeout=dl_timeout,
+                                workers=4 if _aes_is_fast() else 3,
+                            )
+                        except Exception as dl_err:
+                            last_err = "%s download failed q=%s err=%s" % (tag, wanted, dl_err)
+                            continue
+                        if not body:
+                            last_err = "%s empty body q=%s" % (tag, wanted)
+                            continue
+
+                        # 纯 AES 且体积过大时跳过超大 1080，减少必超时
+                        if (not _aes_is_fast()) and wanted in ("1080", "4k") and len(body) > 45 * 1024 * 1024:
+                            last_err = "%s skip large %s without native AES size=%s" % (tag, wanted, len(body))
+                            continue
+
+                        plain = decrypt_mp4_cenc(body, derive_content_key(spade))
+                        if len(plain) < 64 or (b"ftyp" not in plain[:64] and b"moov" not in plain[:4096]):
+                            last_err = "%s bad mp4 after decrypt q=%s" % (tag, wanted)
+                            continue
+                        try:
+                            _hg_cache_put(vid, wanted, plain)
+                        except Exception:
+                            pass
+                        return [200, "video/mp4", plain]
+                    except Exception as one_err:
+                        last_err = "%s q=%s %s" % (tag, wanted, one_err)
+                        continue
+
+                # 这台设备所有清晰度都没拿到流 → 换下一台设备再试
+                if dev_index + 1 < len(devices):
+                    time.sleep(_HG_DEVICE_RETRY_SLEEP)
 
             msg = "hg localProxy failed: %s" % last_err
             return [500, "text/plain; charset=utf-8", msg.encode("utf-8")]
