@@ -1,5 +1,5 @@
 {
-    "spider": "./jar/danmu-spider-native.jar;md5;90049dcbf0088338af22c8252bc942b3",
+    "spider": "./jar/danmu-spider-native.jar;md5;22b17e59a37bb58d970c8c2774b09fe2",
     "lives": [],
     "sites": [
         {
@@ -14,12 +14,11 @@
                     "http://192.168.110.8:9321/793641910|摸鱼部署弹幕",
                     "https://dandan.wenjian.de/wenjian|公益弹幕",
                     "https://danmu.iyo.us.ci/theft-dastardly-prognosis-hula-agenda2-dropkick|公益弹幕2",
-                    "https://danmu.iyo.us.ci/theft-dastardly-prognosis-hula-agenda2-dropkick|🧧弹幕源3",
                     "https://justdanmu.irisnb.com/iris-danmu|🧧弹幕源4",
                     "https://danmu.qianting168.com/456765847636987622146901|🧧弹幕源5",
                     "https://logvar.hhht.cc.cd|🧧弹幕源6"
                 ],
-                "titleMappingsUrl": "https://seep.eu.org/https://raw.githubusercontent.com/goodcommunication/mydm/main/yins.json"
+                "titleMappingsUrl": "https://gh.dpik.top/https://raw.githubusercontent.com/goodcommunication/mydm/main/yins.json"
             }
         }
     ]
