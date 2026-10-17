@@ -364,6 +364,7 @@ function k4Vod(html, vid) {
     var score = /ri-star-fill"\/><\/svg>\s*([\d.]+)/.exec(html);
     var area = /ri-map-pin-line"\/><\/svg>\s*([^<]+?)\s*<\/span>/.exec(html);
     var content = [];
+    content.push('关注企鹅号“793641910”\ud83c\udf3a获取最新软件⏬⏬⏬');
     if (desc) content.push(desc[1].replace(/<[^>]+>/g, '').replace(/^\s+|\s+$/g, ''));
     if (info['导演']) content.push('导演: ' + info['导演']);
     if (info['主演']) content.push('主演: ' + info['主演']);
