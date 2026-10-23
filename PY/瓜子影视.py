@@ -8,6 +8,7 @@ import base64
 import hashlib
 import random
 import string
+import threading
 import urllib.parse
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -16,6 +17,7 @@ from Crypto.Cipher import PKCS1_v1_5
 from base.spider import Spider
 
 sys.path.append('..')
+
 
 class Spider(Spider):
     def __init__(self):
@@ -79,8 +81,23 @@ t5lYKfpe8k83ZA==
         self.cache = {}
         self.cache_timeout = 300
 
-        # 初始化token
-        self.init_token()
+        # ★ 改造1：token 锁 + 预热完成事件，避免并发重复认证
+        self._token_lock = threading.Lock()
+        self._token_ready = threading.Event()
+
+        # ★ 改造4：预解析 RSA 密钥对象，避免每请求 import_key
+        try:
+            self._rsa_pub = RSA.import_key(
+                "-----BEGIN PUBLIC KEY-----\n" + self.RSA_PUBLIC_KEY + "\n-----END PUBLIC KEY-----"
+            )
+            self._rsa_priv = RSA.import_key(self.RSA_PRIVATE_KEY)
+        except Exception as e:
+            print(f"RSA密钥预加载失败: {e}")
+            self._rsa_pub = None
+            self._rsa_priv = None
+
+        # ★ 改造1：后台线程预热 token，不阻塞 TVBox 启动
+        threading.Thread(target=self._warmup, daemon=True).start()
 
     def getName(self):
         return self.name
@@ -88,19 +105,26 @@ t5lYKfpe8k83ZA==
     def init(self, extend=''):
         pass
 
-    # ---------- 设备注册与认证 ----------
-    def init_token(self):
-        """初始化token：注册设备 -> 刷新"""
-        print("===== 初始化设备认证 =====")
+    # ---------- ★ 改造1：后台预热 ----------
+    def _warmup(self):
         try:
-            if not self.registered:
-                self.sign_up()
-            # 刷新获取最终token
-            self.refresh_token()
+            self.ensure_token()
+            self._token_ready.set()
+            print("瓜子token预热完成")
         except Exception as e:
-            print(f"初始化token失败: {e}")
-            # 兜底使用原有硬编码（几乎没用）
-            self.token = '024212ef0975c5306a1434e113a46463.bc77313e11a248558a6ca244ca980944ec3421fa480c50e0229ad91f1cb15aea582603202cd71796885c9e5163e500f1b72f737059aff1ddb8beea47c5a331d6760540345b7f88b2302a0e6e09589f9dcf3ff9175d8c905f990203f5fc04748008ea7a366571cbf5b09509a873dcfba3cf1d5590385f5f7ef6e01d1850974aa220eb5178c89e61c24411af9b9a19435e.06fde789ece48d9b33c5dc857e04e9b5838f08264d928b87237d3476c4484b46'
+            print(f"瓜子token预热失败: {e}")
+
+    # ---------- 设备注册与认证 ----------
+    def ensure_token(self):
+        """确保token有效，加锁防止并发重复认证"""
+        # ★ 改造1：加锁
+        with self._token_lock:
+            if not self.token or not self.token_id:
+                if self.registered:
+                    self.sign_in()
+                else:
+                    self.sign_up()
+                self.refresh_token()
 
     def sign_up(self):
         """注册设备"""
@@ -146,22 +170,13 @@ t5lYKfpe8k83ZA==
         """认证类请求（不需要ensure_token）"""
         return self._send_encrypted_request(params, path, is_auth=True)
 
-    # ---------- 业务请求核心（修复加密与签名） ----------
-    def ensure_token(self):
-        """确保token有效，如未就绪则重新获取"""
-        if not self.token or not self.token_id:
-            if self.registered:
-                self.sign_in()
-            else:
-                self.sign_up()
-            self.refresh_token()
-
+    # ---------- 业务请求核心 ----------
     def _send_encrypted_request(self, data, path, is_auth=False):
         """
         发送加密请求，返回解密后的字典
         :param data: 业务参数字典
         :param path: 请求路径
-        :param is_auth: 是否为认证类请求（signUp/signIn/refresh），此时不使用ensure_token
+        :param is_auth: 是否为认证类请求，此时不使用ensure_token
         """
         try:
             if not is_auth:
@@ -170,7 +185,7 @@ t5lYKfpe8k83ZA==
             # 1. 将参数转为JSON并AES加密
             json_params = json.dumps(data)
             encrypted = self.aes_encrypt(json_params, self.AES_KEY, self.AES_IV)
-            request_key = encrypted.upper()  # Java中是bytesToHex(encrypted).toUpperCase()
+            request_key = encrypted.upper()
 
             # 2. 生成keys (RSA加密 iv/key JSON)
             key_json = json.dumps({"iv": self.AES_IV, "key": self.AES_KEY})
@@ -179,7 +194,7 @@ t5lYKfpe8k83ZA==
             # 3. 生成签名
             t = str(int(time.time()))
             sign_str = f"token_id=,token={self.token},phone_type=1,request_key={request_key},app_id=1,time={t},keys={keys}*&zvdvdvddbfikkkumtmdwqppp?|4Y!s!2br"
-            signature = self.get_md5(sign_str)  # 已改为大写
+            signature = self.get_md5(sign_str)
 
             # 4. 构建请求体
             body = {
@@ -187,7 +202,7 @@ t5lYKfpe8k83ZA==
                 'token_id': '',
                 'phone_type': '1',
                 'time': t,
-                'phone_model': 'xiaomi-25031',  # 与Java版保持一致
+                'phone_model': 'xiaomi-25031',
                 'keys': keys,
                 'request_key': request_key,
                 'signature': signature,
@@ -195,18 +210,20 @@ t5lYKfpe8k83ZA==
                 'ad_version': '1'
             }
 
+            # ★ 改造3：使用局部 header 副本，避免并发下 Referer 错乱
+            local_header = dict(self.header)
+            local_header['Referer'] = self.host
+
             # 5. 发送请求
             url = f"{self.host}{path}"
-            response = self.post(url, headers=self.header, data=body, timeout=10)
+            response = self.post(url, headers=local_header, data=body, timeout=10)
 
             if response.status_code != 200:
                 raise Exception(f"HTTP {response.status_code}")
 
             resp_json = response.json()
-            # 检查业务code（若不为200可能token过期）
             if 'code' in resp_json and resp_json['code'] != 200:
                 print(f"业务错误码: {resp_json['code']}, 信息: {resp_json}")
-                # 如果不是认证请求，尝试重新获取token后重试一次（这里简单处理，外层get_data已有重试）
                 raise Exception("业务错误")
 
             data_section = resp_json.get('data')
@@ -228,8 +245,12 @@ t5lYKfpe8k83ZA==
             print(f"请求失败 [{path}]: {e}")
             return None
 
-    def get_data(self, data, path, use_cache=True):
-        """带重试和域名轮询的数据获取（保持原框架）"""
+    # ---------- ★ 改造3：get_data 支持 fast 模式 ----------
+    def get_data(self, data, path, use_cache=True, fast=False):
+        """
+        带重试和域名轮询的数据获取
+        :param fast: True 时只尝试 2 个域名 1 轮，快速失败（搜索/播放等实时场景用）
+        """
         try:
             cache_key = f"{path}_{hash(str(data))}" if use_cache else None
             if use_cache and cache_key in self.cache:
@@ -237,9 +258,12 @@ t5lYKfpe8k83ZA==
                 if time.time() - timestamp < self.cache_timeout:
                     return cached_data
 
-            for attempt in range(3):
+            max_hosts = 2 if fast else len(self.hosts)
+            max_attempt = 1 if fast else 3
+
+            for attempt in range(max_attempt):
                 tried = 0
-                while tried < len(self.hosts):
+                while tried < max_hosts:
                     self.host = self.hosts[self.host_index]
                     self.header['Referer'] = self.host
                     result = self._send_encrypted_request(data, path)
@@ -249,14 +273,16 @@ t5lYKfpe8k83ZA==
                             self.cache[cache_key] = (result, time.time())
                         return result
 
-                    # 切换到下一个域名
                     self.host_index = (self.host_index + 1) % len(self.hosts)
                     tried += 1
 
-                # 所有域名失败，尝试重新认证并重试
-                if attempt < 2:
-                    print("所有域名失败，尝试重新认证...")
+                if attempt < max_attempt - 1:
+                    print("尝试重新认证...")
                     try:
+                        # ★ 改造1：重置 token 强制重新认证
+                        with self._token_lock:
+                            self.token = ""
+                            self.token_id = ""
                         self.ensure_token()
                     except:
                         pass
@@ -292,10 +318,16 @@ t5lYKfpe8k83ZA==
             print(f"AES解密失败: {e}")
             return ""
 
-    def rsa_encrypt(self, text, public_key_str):
-        """RSA公钥加密（PKCS1v1.5）"""
+    # ★ 改造4：使用预加载的 RSA 对象
+    def rsa_encrypt(self, text, public_key_str=None):
+        """RSA公钥加密（PKCS1v1.5），复用预加载的 key 对象"""
         try:
-            key = RSA.import_key("-----BEGIN PUBLIC KEY-----\n" + public_key_str + "\n-----END PUBLIC KEY-----")
+            key = self._rsa_pub
+            if key is None:
+                key = RSA.import_key(
+                    "-----BEGIN PUBLIC KEY-----\n" + self.RSA_PUBLIC_KEY + "\n-----END PUBLIC KEY-----"
+                )
+                self._rsa_pub = key
             cipher = PKCS1_v1_5.new(key)
             encrypted = cipher.encrypt(text.encode('utf-8'))
             return base64.b64encode(encrypted).decode('utf-8')
@@ -303,12 +335,15 @@ t5lYKfpe8k83ZA==
             print(f"RSA加密失败: {e}")
             return ""
 
-    def rsa_decrypt(self, encrypted_data, private_key_str):
-        """RSA私钥解密"""
+    def rsa_decrypt(self, encrypted_data, private_key_str=None):
+        """RSA私钥解密，复用预加载的 key 对象"""
         try:
+            key = self._rsa_priv
+            if key is None:
+                key = RSA.import_key(self.RSA_PRIVATE_KEY)
+                self._rsa_priv = key
             encrypted_bytes = base64.b64decode(encrypted_data)
-            rsa_key = RSA.import_key(private_key_str)
-            cipher = PKCS1_v1_5.new(rsa_key)
+            cipher = PKCS1_v1_5.new(key)
             decrypted = cipher.decrypt(encrypted_bytes, None)
             return decrypted.decode('utf-8') if decrypted else ""
         except Exception as e:
@@ -316,9 +351,9 @@ t5lYKfpe8k83ZA==
             return ""
 
     def get_md5(self, text):
-        return hashlib.md5(text.encode()).hexdigest().upper()  # 与Java一致大写
+        return hashlib.md5(text.encode()).hexdigest().upper()
 
-    # ---------- 业务方法（不变） ----------
+    # ---------- 业务方法 ----------
     def homeContent(self, filter):
         result = {}
         classes = [
@@ -428,11 +463,32 @@ t5lYKfpe8k83ZA==
             print(f"获取详情失败: {e}")
             return {'list': []}
 
+    # ---------- ★ 改造2 + 改造3 + 改造5：搜索优化 ----------
     def searchContent(self, key, quick, pg=1):
         videos = []
         try:
+            # ★ 改造5：token 未就绪时最多等 3s，避免无限阻塞
+            if not self.token:
+                self._token_ready.wait(timeout=3)
+
             body = {"keywords": key, "order_val": "1", "page": str(pg)}
-            data = self.get_data(body, '/App/Index/findMoreVod', use_cache=False)
+
+            # ★ 改造2：搜索缓存 30s，重复搜索零网络
+            cache_key = f"search_{key}_{pg}"
+            now = time.time()
+            data = None
+            if cache_key in self.cache:
+                cached_data, ts = self.cache[cache_key]
+                if now - ts < 30:
+                    data = cached_data
+                    print(f"搜索命中缓存: {key}")
+
+            if data is None:
+                # ★ 改造3：fast=True，只试 2 域名 1 轮，最坏 ~6s
+                data = self.get_data(body, '/App/Index/findMoreVod', use_cache=False, fast=True)
+                if data is not None:
+                    self.cache[cache_key] = (data, now)
+
             if data and 'list' in data:
                 for item in data['list']:
                     vod_continu = item.get('vod_continu', 0)
@@ -462,10 +518,12 @@ t5lYKfpe8k83ZA==
             if resolutions:
                 resolutions.sort(key=lambda x: int(x) if x.isdigit() else 0, reverse=True)
                 params['resolution'] = resolutions[0]
-                data = self.get_data(params, '/App/Resource/VurlDetail/showOne', use_cache=False)
+                # ★ 改造3：播放也用 fast 模式
+                data = self.get_data(params, '/App/Resource/VurlDetail/showOne', use_cache=False, fast=True)
                 if data and 'url' in data:
                     return {"parse": 0, "playUrl": "", "url": data['url'],
-                            "header": json.dumps({"User-Agent": "Lavf/57.83.100", "Referer": "http://WJiZxLXA2.com/"}), 'danmaku': 'http://127.0.0.1:9978/proxy?do=diydanmu'}
+                            "header": json.dumps({"User-Agent": "Lavf/57.83.100", "Referer": "http://WJiZxLXA2.com/"}),
+                            'danmaku': 'http://127.0.0.1:9978/proxy?do=diydanmu'}
             return {"parse": 0, "playUrl": "", "url": ""}
         except Exception as e:
             print(f"播放解析失败: {e}")
@@ -491,6 +549,7 @@ t5lYKfpe8k83ZA==
         if result:
             self.cache[cache_key] = (result, current_time)
         return result
+
 
 if __name__ == '__main__':
     pass
