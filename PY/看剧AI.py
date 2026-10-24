@@ -190,7 +190,7 @@ class Spider(Spider):
             "vod_class": "/".join((d.get("genres") or [])[:3]),
             "vod_director": "/".join((d.get("directors") or [])[:2]),
             "vod_actor": "/".join((d.get("actors") or [])[:3]),
-            "vod_content": d.get("description") or "",
+            "vod_content": "🌺关注企鹅号,获取最新软件🌺加🇶|🇶793641910防迷失！➽➽➽"+d.get("description") or "",
             "vod_remarks": d.get("status") or d.get("remarks") or "",
             "vod_play_from": play_from, "vod_play_url": play_url,
         }]}
