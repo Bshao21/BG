@@ -378,6 +378,11 @@ class Spider(Spider):
                          root.xpath('//div[contains(@class,"module-tab-item")]//span/text()')]
             froms = [f.strip() for f in froms if f and f.strip()]
 
+            # ============ 修改部分：强制替换线路名称为“兵哥视界” ============
+            if froms:
+                froms = ["兵哥视界" for _ in froms]
+            # ==================================================================
+
             boxes, seen = [], set()
             cls = ('//*[contains(concat(" ", normalize-space(@class), " "), " %s ")]')
             for b in root.xpath(cls % 'module-play-list'):
@@ -416,7 +421,7 @@ class Spider(Spider):
                 "vod_actor": actor,
                 "vod_director": director,
                 "vod_content": content,
-                "vod_play_from": "$$$".join(play_from) if play_from else "默认",
+                "vod_play_from": "$$$".join(play_from) if play_from else "兵哥视界",
                 "vod_play_url": "$$$".join(play_url)
             }
             return {'list': [detail], 'parse': 0, 'jx': 0}
