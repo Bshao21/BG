@@ -1,7 +1,7 @@
 {
     "spider": "./jar/danmu-spider-native.jar;md5;22b17e59a37bb58d970c8c2774b09fe2",
-    "lives":[],
-    "sites":[
+    "lives": [],
+    "sites": [
         {
             "key": "弹幕",
             "name": "弹幕(测试)",
@@ -9,15 +9,12 @@
             "api": "csp_SecureDanmu",
             "index": 1,
             "ext": {
-                "apiUrls":[
+                "apiUrls": [
                     "http://192.168.7.67:9321/793641910|兵哥自用部署",
                     "http://192.168.110.8:9321/793641910|摸鱼部署弹幕",
                     "https://dandan.wenjian.de/wenjian|公益弹幕",
-                    "https://danmu.iyo.us.ci/theft-dastardly-prognosis-hula-agenda2-dropkick|公益弹幕2",
                     "https://danmu.iyo.us.ci/theft-dastardly-prognosis-hula-agenda2-dropkick|🧧弹幕源3",
-                    "https://danmu.qianting168.com/456765847636987622146901|3弹幕源2",
                     "https://dm.ljiaovm.com/luosen|3弹幕源3",
-                    "https://dandan.wenjian.de/wenjian|3弹幕源6",
                     "https://danmu.cynn.top/cynnsq|3弹幕源7",
                     "https://dmfl.us.ci/|3弹幕源8",
                     "https://danmu.0000996.xyz/|3弹幕源9",
